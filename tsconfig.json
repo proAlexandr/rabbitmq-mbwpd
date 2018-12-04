@@ -1,0 +1,22 @@
+{
+    "compilerOptions": {
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "noImplicitAny": false,
+        "removeComments": true,
+        "preserveConstEnums": true,
+        "declaration": true,
+        "declarationDir": "./",
+        "outDir": "./",
+        "target": "es6",
+        "sourceMap": false
+    },
+    "include": [
+        "src/**/*",
+        "index.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "**/*.spec.ts"
+    ]
+}
