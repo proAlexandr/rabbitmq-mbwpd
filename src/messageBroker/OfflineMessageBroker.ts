@@ -1,5 +1,5 @@
 import { ConsumeMessage, Channel } from 'amqplib'
-import { IMessageBroker } from './MessageBroker'
+import IMessageBroker from './IMessageBroker'
 
 interface ISavedQueue {
   queueName: string

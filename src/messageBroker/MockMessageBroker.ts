@@ -1,5 +1,5 @@
 import { ConsumeMessage, Channel } from 'amqplib'
-import { IMessageBroker } from './MessageBroker'
+import IMessageBroker from './IMessageBroker'
 
 class MockMessageBroker implements IMessageBroker {
   public async sendToQueue(queueName: string, message: Buffer): Promise<void> {

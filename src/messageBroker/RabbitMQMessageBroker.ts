@@ -1,19 +1,25 @@
 import { Connection, Channel, connect, Replies, ConsumeMessage } from 'amqplib'
-import { IMessageBroker } from './MessageBroker'
+import IMessageBroker from './IMessageBroker'
+
+interface ISavedQueue {
+  queueName: string
+  message: Buffer
+}
 
 // all queues have { durable: true, noAck: false }. Dont forget to do `channel.ack(msg)` in consume callback
 class RabbitMQMessageBroker implements IMessageBroker {
   private configUrl: string
   private connection: Connection | null
   private channel: Channel | null
-  private handleErrorCallback: (error?: Error) => void
+  private errorCallback: (error?: Error) => void
+  private savedMessagesWaitingForDrainEvent: ISavedQueue[]
 
-  constructor(configUrl: string, handleErrorCallback: () => void = (): void => { return }) {
+  constructor(configUrl: string, errorCallback: () => void = (): void => { return }) {
     this.configUrl = configUrl
-    this.handleErrorCallback = handleErrorCallback
+    this.errorCallback = errorCallback
   }
 
-  public static IS_RABBITMQ_MESSABE_BROKER(messageBroker: IMessageBroker): messageBroker is RabbitMQMessageBroker {
+  public static IS_RABBITMQ_MESSAGE_BROKER(messageBroker: IMessageBroker): messageBroker is RabbitMQMessageBroker {
     return messageBroker instanceof RabbitMQMessageBroker
   }
 
@@ -31,9 +37,7 @@ class RabbitMQMessageBroker implements IMessageBroker {
 
     const isSended: boolean = channel.sendToQueue(queue, message)
     if (!isSended) {
-      channel.on('drain', () => {
-        channel.sendToQueue(queue, message)
-      })
+      this.handleMessageNotSendDrain({ queueName: queue, message })
     }
   }
 
@@ -65,25 +69,41 @@ class RabbitMQMessageBroker implements IMessageBroker {
     if (!this.connection) {
       this.connection = await connect(this.configUrl)
 
-      this.connection.on('close', () => {
-        this.connection = null
-        this.handleErrorCallback()
-      })
-      this.connection.on('error', (error: Error) => {
-        this.connection = null
-        this.channel = null
-        this.handleErrorCallback(error)
-      })
+      this.connection.once('close', () => this.connectionErrorCallback())
+      this.connection.once('error', (error) => this.connectionErrorCallback(error))
     }
 
     if (!this.channel) {
       this.channel = await this.connection.createChannel()
 
-      this.channel.on('error', (error: Error) => {
-        this.channel = null
-        this.handleErrorCallback(error)
-      })
+      this.channel.once('error', (error) => this.channelErrorCallback(error))
+    }
+  }
 
+  private handleMessageNotSendDrain(message: ISavedQueue): void {
+    this.savedMessagesWaitingForDrainEvent.push(message)
+    if (this.channel.listeners('drain').length === 0) {
+      this.channel.once('drain', this.channelDrainCallback)
+    }
+  }
+
+  private connectionErrorCallback = (error?: Error): void => {
+    this.connection.removeAllListeners()
+    this.channel.removeAllListeners()
+    this.connection = null
+    this.channel = null
+    this.errorCallback(error)
+  }
+  
+  private channelErrorCallback = (error?: Error): void => {
+    this.connection.removeAllListeners()
+    this.channel = null
+    this.errorCallback(error)
+  }
+
+  private channelDrainCallback = (): void => {
+    for (const { queueName, message } of this.savedMessagesWaitingForDrainEvent) {
+      this.channel.sendToQueue(queueName, message)
     }
   }
 }

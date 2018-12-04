@@ -1,4 +1,4 @@
-import MessageBroker, { IConsumerService } from "./src/MessageBroker";
+import MessageService, { IConsumerService } from "./src/MessageService"
 
-export default MessageBroker
+export default MessageService
 export { IConsumerService }

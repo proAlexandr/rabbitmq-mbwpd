@@ -1,21 +1,16 @@
 import { ConsumeMessage, Channel } from 'amqplib'
-import RabbitMQMessageBroker from './RabbitMQMessageBroker'
-import OfflineMessageBroker from './OfflineMessageBroker'
-import MockMessageBroker from './MockMessageBroker'
+import RabbitMQMessageBroker from './messageBroker/RabbitMQMessageBroker'
+import OfflineMessageBroker from './messageBroker/OfflineMessageBroker'
+import MockMessageBroker from './messageBroker/MockMessageBroker'
+import IMessageBroker from './messageBroker/IMessageBroker'
 
 const MINUTES_TO_RECONNECT_TRY: number = 30
 
-export interface IMessageBroker {
-  sendToQueue(queueName: string, message: Buffer): Promise<void>
-  // tslint:disable-next-line:no-any
-  consume(queueName: string, cb: (cm: ConsumeMessage, channel: Channel) => any): Promise<void>
-  closeConnection(): Promise<void>
-}
 
 export interface IConsumerService {
   consumeMessage(message: ConsumeMessage, channel: Channel): void
 }
-class MessageBroker {
+class MessageService {
   private currentMessageBroker: IMessageBroker
 
   private rabbitMqUrl: string | null
@@ -26,18 +21,21 @@ class MessageBroker {
   private queueNames: Set<string>
 
   private reconnectTimeInterval: number | NodeJS.Timer | null
+  private errorCallback: (error: Error) => void
+  
 
-  constructor(rabbitMqUrl: string | null) {
+  constructor(rabbitMqUrl: string | null, errorCallback: () => void = () => { return }) {
     if (!rabbitMqUrl) {
       this.rabbitMqUrl = null
       // tslint:disable-next-line:no-console
-      console.log('Created MessageBroker with empty value for rabbitmq url. Sending message will be mock for empty function.')
+      console.info('Created MessageBroker with empty value for rabbitmq url. Sending message will be mocked for empty function.')
     } else {
       this.rabbitMqUrl = rabbitMqUrl
     }
+    this.errorCallback = errorCallback
+
     this.serviceConsumeFunctions = []
     this.queueNames = new Set<string>()
-
     this.reconnectTimeInterval = null
   }
 
@@ -65,19 +63,19 @@ class MessageBroker {
   }
 
   private async ensureMessageBroker(): Promise<void> {
-    if (RabbitMQMessageBroker.IS_RABBITMQ_MESSABE_BROKER(this.currentMessageBroker)) {
-      return this.currentMessageBroker.ensureChannelIsAvailable()
+    if (!this.currentMessageBroker) {
+      await this.initMessageBroker()
     }
 
-    if (!this.currentMessageBroker) {
-      return this.initMessageBroker()
+    if (RabbitMQMessageBroker.IS_RABBITMQ_MESSAGE_BROKER(this.currentMessageBroker)) {
+      await this.currentMessageBroker.ensureChannelIsAvailable()
     }
   }
 
   private async initMessageBroker(): Promise<void> {
     if (this.isNeedToStartRabbitMQMessageBroker(this.rabbitMqUrl)) {
       try {
-        const rabbitMQMessageBroker: RabbitMQMessageBroker = new RabbitMQMessageBroker(this.rabbitMqUrl, this.handleErrorCallback)
+        const rabbitMQMessageBroker: RabbitMQMessageBroker = new RabbitMQMessageBroker(this.rabbitMqUrl, this.errorCallbackRabbitMQ)
         await rabbitMQMessageBroker.ensureChannelIsAvailable()
         await this.moveSavedQueue(rabbitMQMessageBroker)
 
@@ -117,11 +115,11 @@ class MessageBroker {
     }
   }
 
-  private handleErrorCallback = (error?: Error): void => {
+  private errorCallbackRabbitMQ = (error?: Error): void => {
     if (error) {
       this.handleError('Error inside RabbitMQMessageBroker', error)
     }
-    if (RabbitMQMessageBroker.IS_RABBITMQ_MESSABE_BROKER(this.currentMessageBroker)) {
+    if (RabbitMQMessageBroker.IS_RABBITMQ_MESSAGE_BROKER(this.currentMessageBroker)) {
       this.currentMessageBroker.ensureChannelIsAvailable().catch((err: Error) => {
         console.error('Instant reinit of rabbitmq connection and channel failed', err)
         this.handleRabbitMQError()
@@ -132,10 +130,13 @@ class MessageBroker {
 
   private handleError(message: string, error: Error): void {
     console.error(message, error)
+    if (this.errorCallback) {
+      this.errorCallback(error)
+    }
   }
 
   private handleRabbitMQError(queueName: string | null = null, messageFailedToSend: Buffer | null = null): void {
-    if (RabbitMQMessageBroker.IS_RABBITMQ_MESSABE_BROKER(this.currentMessageBroker)) {
+    if (RabbitMQMessageBroker.IS_RABBITMQ_MESSAGE_BROKER(this.currentMessageBroker)) {
       this.currentMessageBroker = new OfflineMessageBroker()
 
       if (messageFailedToSend && queueName) {
@@ -162,4 +163,4 @@ class MessageBroker {
   }
 }
 
-export default MessageBroker
+export default MessageService
