@@ -1,0 +1,23 @@
+{
+  "name": "rabbitmq-mbwpd",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "install": "npm run build"
+  },
+  "author": "MyStand",
+  "license": "ISC",
+  "dependencies": {
+    "amqplib": "^0.5.2",
+    "raven": "^2.5.0",
+    "typescript": "2.9.2"
+  },
+  "devDependencies": {
+    "@types/amqplib": "^0.5.9",
+    "@types/node": "^9.6.2",
+    "@types/raven": "^2.1.6"
+  }
+}
