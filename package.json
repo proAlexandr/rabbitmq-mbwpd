@@ -12,12 +12,12 @@
   "license": "ISC",
   "dependencies": {
     "amqplib": "^0.5.2",
-    "raven": "^2.5.0",
-    "typescript": "2.9.2"
+    "raven": "^2.5.0"
   },
   "devDependencies": {
     "@types/amqplib": "^0.5.9",
     "@types/node": "^9.6.2",
-    "@types/raven": "^2.1.6"
+    "@types/raven": "^2.1.6",
+    "typescript": "2.9.2"
   }
 }
