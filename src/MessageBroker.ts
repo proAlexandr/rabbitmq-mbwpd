@@ -25,7 +25,7 @@ class MessageBroker {
   }[]
   private queueNames: Set<string>
 
-  private reconnectTimeInterval: NodeJS.Timer | null
+  private reconnectTimeInterval: number | NodeJS.Timer | null
 
   constructor(rabbitMqUrl: string | null) {
     if (!rabbitMqUrl) {
@@ -146,13 +146,13 @@ class MessageBroker {
 
   private reInitRabbitMQSetInterval(): void {
     if (!this.reconnectTimeInterval) {
-      this.reconnectTimeInterval = setInterval(this.initMessageBroker.bind(this), MINUTES_TO_RECONNECT_TRY * 60 * 1000)
+      this.reconnectTimeInterval = setInterval(this.initMessageBroker.bind(this), MINUTES_TO_RECONNECT_TRY * 60 * 1000) as any
     }
   }
 
   private reInitRabbitMQClearInterval(): void {
     if (this.reconnectTimeInterval) {
-      clearInterval(this.reconnectTimeInterval)
+      clearInterval(this.reconnectTimeInterval as any)
       this.reconnectTimeInterval = null
     }
   }
