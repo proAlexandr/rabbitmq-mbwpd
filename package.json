@@ -6,7 +6,7 @@
   "types": "index.d.ts",
   "scripts": {
     "build": "tsc",
-    "install": "npm run build"
+    "prepare": "npm run build"
   },
   "author": "MyStand",
   "license": "ISC",
