@@ -82,26 +82,34 @@ class RabbitMQMessageBroker implements IMessageBroker {
 
   private handleMessageNotSendDrain(message: ISavedQueue): void {
     this.savedMessagesWaitingForDrainEvent.push(message)
-    if (this.channel.listeners('drain').length === 0) {
+    if (this.channel && this.channel.listeners('drain').length === 0) {
       this.channel.once('drain', this.channelDrainCallback)
     }
   }
 
   private connectionErrorCallback = (error?: Error): void => {
-    this.connection.removeAllListeners()
-    this.channel.removeAllListeners()
+    if (this.channel && this.connection) {
+      this.connection.removeAllListeners()
+      this.channel.removeAllListeners()  
+    }
     this.connection = null
     this.channel = null
     this.errorCallback(error)
   }
   
   private channelErrorCallback = (error?: Error): void => {
-    this.connection.removeAllListeners()
+    if (this.channel) {
+      this.channel.removeAllListeners()
+    }
     this.channel = null
     this.errorCallback(error)
   }
 
   private channelDrainCallback = (): void => {
+    if (!this.channel) {
+      return
+    }
+
     for (const { queueName, message } of this.savedMessagesWaitingForDrainEvent) {
       this.channel.sendToQueue(queueName, message)
     }
