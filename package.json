@@ -15,6 +15,7 @@
     "raven": "^2.5.0"
   },
   "devDependencies": {
+    "@types/node": "9.6.40",
     "@types/amqplib": "^0.5.9",
     "@types/node": "^9.6.2",
     "@types/raven": "^2.1.6",
